@@ -135,10 +135,11 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .hero h2{font-size:34px;line-height:1.08;margin-bottom:12px}
 .hero > p{color:var(--ink-2);max-width:56ch;margin:0 0 18px;font-size:15.5px}
 .trust{display:grid;gap:10px;margin-bottom:18px}
-.trust div{display:grid;grid-template-columns:34px 1fr;gap:12px;align-items:start;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:13px 14px}
+.trust > div{display:grid;grid-template-columns:34px 1fr;gap:12px;align-items:start;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:13px 14px}
 .trust i{font-style:normal;width:34px;height:34px;border-radius:9px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-weight:700}
-.trust b{display:block;font-size:14.5px}
-.trust span{font-size:13px;color:var(--muted)}
+.trust > div > div > b{display:block;font-size:14.5px}
+.trust > div > div > span{font-size:13px;color:var(--muted)}
+.combo{font-size:11px;font-weight:700;color:var(--brass);background:var(--brass-soft);padding:2px 7px;border-radius:6px;margin-left:6px;white-space:nowrap}
 .foot{max-width:1180px;margin:0 auto;padding-block:18px 36px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));font-size:12px;color:var(--muted);border-top:1px solid var(--line)}
 .foot p{margin:0 0 6px;max-width:90ch}
 </style>
