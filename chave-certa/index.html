@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="pt-BR"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Chave Certa · Compre à vista, sem financiamento</title>
+<meta name="description" content="Simule em 1 minuto: entrada, parcela e prazo para comprar seu imóvel ou veículo com crédito já liberado.">
+<meta property="og:title" content="Chave Certa · Compre à vista, sem financiamento">
+<meta property="og:description" content="Simule em 1 minuto quanto você precisa de entrada e quanto pagaria por mês.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap">
+<style>[hidden]{display:none!important}body{margin:0}
+
+/* Layout: barra fixa com alternância Cliente/Bastidores; cliente = funil em coluna estreita tipo celular; bastidores = painel com pipeline de agentes, lista de leads e dossiê */
+:root{
+  --bg:#EEF2F1; --surface:#FFFFFF; --sunk:#E3E9E7; --ink:#0E2A2F; --ink-2:#3E5A5E; --muted:#6F8689;
+  --line:#D2DCDA; --accent:#0F7B66; --accent-ink:#FFFFFF; --accent-soft:#D5EEE7; --brass:#B7862F; --brass-soft:#F5EAD3;
+  --good:#1E7F52; --good-soft:#DDF1E6; --warn:#A86A12; --warn-soft:#F8EAD2; --bad:#B23B30; --bad-soft:#F7DEDA;
+  --display:'Bricolage Grotesque','Avenir Next','Segoe UI',sans-serif;
+  --body:'Figtree','Segoe UI',system-ui,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+  --r:14px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0B1A1D; --surface:#12262A; --sunk:#0E2024; --ink:#E6F0EE; --ink-2:#B3C7C4; --muted:#7F9794;
+  --line:#22393D; --accent:#3CC39F; --accent-ink:#06231C; --accent-soft:#163F37; --brass:#E0B25C; --brass-soft:#3A2F17;
+  --good:#5AD08F; --good-soft:#16362A; --warn:#E6A945; --warn-soft:#3A2C12; --bad:#F07D72; --bad-soft:#3D1D1A; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0B1A1D; --surface:#12262A; --sunk:#0E2024; --ink:#E6F0EE; --ink-2:#B3C7C4; --muted:#7F9794;
+  --line:#22393D; --accent:#3CC39F; --accent-ink:#06231C; --accent-soft:#163F37; --brass:#E0B25C; --brass-soft:#3A2F17;
+  --good:#5AD08F; --good-soft:#16362A; --warn:#E6A945; --warn-soft:#3A2C12; --bad:#F07D72; --bad-soft:#3D1D1A; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+h1,h2,h3{font-family:var(--display);margin:0;letter-spacing:-.015em;text-wrap:balance}
+button,input,select{font-family:inherit;font-size:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+
+/* barra */
+.bar{position:sticky;top:env(safe-area-inset-top,0px);z-index:9;background:var(--surface);border-bottom:1px solid var(--line)}
+.bar-in{max-width:1180px;margin:0 auto;display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.brand{display:flex;align-items:center;gap:10px;margin-right:auto}
+.mark{width:34px;height:34px;border-radius:10px;background:var(--ink);display:grid;place-items:center}
+.mark svg{width:20px;height:20px}
+.brand b{font-family:var(--display);font-size:17px;letter-spacing:-.02em;display:block;line-height:1.1}
+.brand small{font-size:11px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+.demo{font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;background:var(--brass-soft);color:var(--brass);padding:3px 8px;border-radius:6px}
+.seg{display:flex;background:var(--sunk);border-radius:11px;padding:3px}
+.seg button{border:0;background:transparent;padding:7px 14px;border-radius:9px;font-weight:600;font-size:13.5px;color:var(--ink-2)}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+
+.wrap{max-width:1180px;margin:0 auto;padding-block:22px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+
+/* ===== CLIENTE ===== */
+.client{display:grid;grid-template-columns:minmax(0,440px) minmax(0,1fr);gap:36px;align-items:start}
+@media(max-width:900px){.client{grid-template-columns:1fr}.aside{order:2}}
+.phone{background:var(--surface);border:1px solid var(--line);border-radius:26px;overflow:hidden;box-shadow:0 18px 40px -24px rgba(14,42,47,.45)}
+.ig{display:flex;align-items:center;gap:9px;padding:11px 16px;border-bottom:1px solid var(--line);font-size:12.5px;color:var(--muted)}
+.ig .av{width:26px;height:26px;border-radius:50%;background:var(--ink);display:grid;place-items:center}
+.ig .av svg{width:14px;height:14px}
+.ig b{color:var(--ink);font-weight:600}
+.flow{padding:22px 20px 24px}
+.steps{display:flex;gap:6px;margin-bottom:18px}
+.steps i{flex:1;height:4px;border-radius:4px;background:var(--sunk)}
+.steps i.on{background:var(--accent)}
+.q-eyebrow{font-size:11.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--accent)}
+.q{font-size:25px;line-height:1.15;margin:6px 0 16px}
+.choices{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.choice{border:1.5px solid var(--line);background:var(--surface);border-radius:var(--r);padding:16px 14px;text-align:left;display:flex;flex-direction:column;gap:6px;transition:border-color .15s,background .15s}
+.choice:hover{border-color:var(--accent)}
+.choice[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.choice svg{width:30px;height:30px}
+.choice b{font-size:15.5px}
+.choice span{font-size:12.5px;color:var(--muted)}
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
+.field label{font-size:13px;font-weight:600;color:var(--ink-2)}
+.money{display:flex;align-items:center;border:1.5px solid var(--line);border-radius:12px;background:var(--surface);padding:0 12px;height:50px}
+.money:focus-within{border-color:var(--accent)}
+.money span{color:var(--muted);font-family:var(--mono);font-size:14px;margin-right:6px}
+.money input{border:0;outline:0;background:transparent;flex:1;min-width:0;font-family:var(--mono);font-size:19px;font-weight:600}
+.hint{font-size:12px;color:var(--muted)}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.btn{border:0;border-radius:12px;height:50px;padding:0 18px;font-weight:700;font-size:15px;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.btn-main{background:var(--accent);color:var(--accent-ink);width:100%}
+.btn-main:disabled{opacity:.45;cursor:not-allowed}
+.btn-ghost{background:transparent;color:var(--ink-2);border:1.5px solid var(--line)}
+.row-btns{display:flex;gap:10px;margin-top:6px}
+.row-btns .btn-ghost{flex:0 0 auto}
+.cap{background:var(--ink);color:#E6F0EE;border-radius:var(--r);padding:16px;margin-bottom:14px}
+:root[data-theme="dark"] .cap{background:var(--sunk);color:var(--ink)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .cap{background:var(--sunk);color:var(--ink)}}
+.cap small{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.7}
+.cap .big{font-family:var(--display);font-size:30px;font-weight:800;line-height:1.05;margin-top:3px}
+.cap p{margin:6px 0 0;font-size:13px;opacity:.85}
+.opt{border:1px solid var(--line);border-radius:var(--r);padding:13px 14px;margin-bottom:10px;background:var(--surface)}
+.opt-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}
+.opt-top b{font-family:var(--display);font-size:20px}
+.tag{font-size:11px;font-weight:700;padding:3px 8px;border-radius:20px;white-space:nowrap}
+.t-good{background:var(--good-soft);color:var(--good)}
+.t-warn{background:var(--warn-soft);color:var(--warn)}
+.opt-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:9px}
+.opt-grid div{display:flex;flex-direction:column}
+.opt-grid span{font-size:11px;color:var(--muted)}
+.opt-grid b{font-family:var(--mono);font-size:13.5px;font-weight:600}
+.lock{position:relative}
+.lock .opt{filter:blur(4px);user-select:none;pointer-events:none}
+.lock-msg{position:absolute;inset:0;display:grid;place-items:center;text-align:center;font-weight:700;font-size:14px;color:var(--ink)}
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0 16px}
+.compare div{border-radius:12px;padding:11px 12px;background:var(--sunk)}
+.compare div.win{background:var(--accent-soft)}
+.compare span{font-size:11.5px;color:var(--muted);display:block}
+.compare b{font-family:var(--mono);font-size:16px}
+.fine{font-size:11.5px;color:var(--muted);line-height:1.45;margin:10px 0 0}
+.check{display:flex;gap:9px;align-items:flex-start;font-size:12.5px;color:var(--ink-2);margin:4px 0 14px}
+.check input{margin-top:3px;accent-color:var(--accent)}
+.txt{border:1.5px solid var(--line);border-radius:12px;height:46px;padding:0 12px;background:var(--surface);outline:0}
+.txt:focus{border-color:var(--accent)}
+.err{color:var(--bad);font-size:12.5px;min-height:18px}
+.done{text-align:center;padding:10px 0}
+.done .ok{width:58px;height:58px;border-radius:50%;background:var(--good-soft);display:grid;place-items:center;margin:0 auto 12px}
+.done .ok svg{width:30px;height:30px}
+
+.aside h2{font-size:30px;line-height:1.1;margin-bottom:10px}
+.aside > p{color:var(--ink-2);max-width:60ch;margin:0 0 18px}
+.how{display:grid;gap:10px}
+.how > div{display:grid;grid-template-columns:34px 1fr;gap:12px;align-items:start;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:13px 14px}
+.how i{font-style:normal;font-family:var(--mono);font-weight:600;width:34px;height:34px;border-radius:9px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-size:13px}
+.how > div > div > b{display:block;font-size:14.5px}
+.how > div > div > span{font-size:13px;color:var(--muted)}
+
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:13.5px;font-weight:600;opacity:0;transition:opacity .2s;pointer-events:none;z-index:20}
+.toast.show{opacity:1}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+.hero h2{font-size:34px;line-height:1.08;margin-bottom:12px}
+.hero > p{color:var(--ink-2);max-width:56ch;margin:0 0 18px;font-size:15.5px}
+.trust{display:grid;gap:10px;margin-bottom:18px}
+.trust div{display:grid;grid-template-columns:34px 1fr;gap:12px;align-items:start;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:13px 14px}
+.trust i{font-style:normal;width:34px;height:34px;border-radius:9px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-weight:700}
+.trust b{display:block;font-size:14.5px}
+.trust span{font-size:13px;color:var(--muted)}
+.foot{max-width:1180px;margin:0 auto;padding-block:18px 36px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));font-size:12px;color:var(--muted);border-top:1px solid var(--line)}
+.foot p{margin:0 0 6px;max-width:90ch}
+</style>
+<script src="config.js"></script>
+</head><body>
+<header class="bar"><div class="bar-in">
+  <div class="brand">
+    <div class="mark"><svg viewBox="0 0 24 24" fill="none" stroke="#3CC39F" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="M11 12l8-8M16 7l2 2M14 9l2 2"/></svg></div>
+    <div><b>Chave Certa</b><small data-empresa>MGG Negócios</small></div>
+  </div>
+</div></header>
+<main class="wrap">
+  <section class="client">
+    <div class="phone"><div class="flow" id="flow"><p class="hint">Carregando o simulador…</p></div></div>
+    <div class="hero aside">
+      <h2>Compre seu imóvel ou carro à vista, sem financiamento bancário.</h2>
+      <p>Responda três perguntas e veja na hora quanto precisa de entrada, quanto pagaria por mês e em quanto tempo. Sem cadastro para simular.</p>
+      <div class="trust">
+        <div><i>1</i><div><b>Crédito já liberado</b><span>Você negocia com o vendedor como comprador à vista e escolhe o bem que quiser.</span></div></div>
+        <div><i>2</i><div><b>Custo menor que o do banco</b><span>Mostramos o custo efetivo ao ano lado a lado com um financiamento tradicional.</span></div></div>
+        <div><i>3</i><div><b>Tudo em contrato</b><span>Nenhum pagamento antes do contrato. A transferência é feita pela administradora, depois da análise de crédito.</span></div></div>
+      </div>
+    </div>
+  </section>
+</main>
+<footer class="foot">
+  <p><b data-empresa>MGG Negócios</b><span id="cnpj"></span></p>
+  <p>As condições são estruturadas com cartas de crédito de consórcio já contempladas, adquiridas no mercado secundário. Todos os detalhes, inclusive o contrato, são apresentados por um especialista antes de qualquer compromisso. Valores de referência, sujeitos a análise de crédito e à disponibilidade.</p>
+  <p>Seus dados são usados apenas para apresentar condições de compra e entrar em contato, conforme a LGPD.</p>
+</footer>
+<div class="toast" id="toast"></div>
+<script>
+const $ = id => document.getElementById(id);
+const brl = n => (n==null||!isFinite(n)) ? '—' : n.toLocaleString('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0});
+const brlK = n => !isFinite(n) ? '—' : n>=1e6 ? 'R$ '+(n/1e6).toLocaleString('pt-BR',{maximumFractionDigits:1})+' mi' : n>=1e3 ? 'R$ '+Math.round(n/1e3)+' mil' : brl(n);
+const pct = (n,d=1) => (n==null||!isFinite(n)) ? '—' : (n*100).toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d})+'%';
+const alavR = n => isFinite(n) ? 'R$ '+n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—';
+const xfmt = n => isFinite(n) ? n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'×' : '—';
+const parseMoney = s => { const n = parseFloat(String(s||'').replace(/\./g,'').replace(/[^\d,]/g,'').replace(',','.')); return isNaN(n)?0:n; };
+const fmtMoneyInput = n => n ? Math.round(n).toLocaleString('pt-BR') : '';
+function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2600);}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+/* ===== regras da operação (respostas do Ribeiro, 23/10) ===== */
+const PUBLICO_MIN = { imovel: 500000, auto: 150000 };   // público-alvo
+const LIMITE_SEM_AUMENTO = 3000000;                       // acima disso: pedir aumento de limite
+function cfg(){ return { renda:1/3, tmin:0.03, tmax:0.04, ehi:0.45, elo:0.30, finI:0.12, finA:0.24 }; }
+// taxa MGG: entrada baixa em relação à carta = taxa maior (faixas provisórias)
+function taxaFor(ratio, c){
+  if(ratio >= c.ehi) return c.tmin;
+  if(ratio <= c.elo) return c.tmax;
+  return c.tmax - (ratio - c.elo)/(c.ehi - c.elo) * (c.tmax - c.tmin);
+}
+const segMax = sg => Math.max(...sg.map(s=>s[1]));
+function priced(c, cat){
+  return BASE.filter(r=>r.c===cat).map(r=>{
+    const tx = taxaFor(r.en/r.cr, c);
+    return {...r, tx, ent: r.en + r.tt + tx*r.cr, marg: tx*r.cr, p0: r.sg[0][1], pmax: segMax(r.sg)};
+  });
+}
+// fluxo consolidado mês a mês, compactado em faixas [quantidade, valor]
+function flowOf(parts){
+  const n = Math.max(...parts.map(r=>r.n)); const m = new Array(n).fill(0);
+  parts.forEach(r=>{ let k=0; r.sg.forEach(([q,v])=>{ for(let j=0;j<q;j++) m[k++] += v; }); });
+  const seg=[]; m.forEach(v=>{ if(seg.length && seg[seg.length-1][1]===v) seg[seg.length-1][0]++; else seg.push([1,v]); });
+  return seg;
+}
+// uma condição = uma carta ou duas cartas somadas (mesmo cálculo da proposta MGG)
+function condition(parts, p, cap){
+  const cr = parts.reduce((a,r)=>a+r.cr,0), ent = parts.reduce((a,r)=>a+r.ent,0), sd = parts.reduce((a,r)=>a+r.sd,0);
+  const marg = parts.reduce((a,r)=>a+r.marg,0);
+  const prazo = parts.reduce((a,r)=>a+r.n*r.cr,0)/cr;                 // prazo ponderado pelo crédito
+  const p0 = parts.reduce((a,r)=>a+r.p0,0), pmax = parts.reduce((a,r)=>a+r.pmax,0);
+  const fin = cr - ent;
+  const im = fin>0 && sd>0 ? Math.pow(sd/fin, 1/prazo) - 1 : NaN;     // custo efetivo mensal
+  const cet = isFinite(im) ? Math.pow(1+im,12) - 1 : NaN;
+  const compl = Math.max(0, p.valor - cr), upfront = ent + compl;
+  const fitCred = 1 - Math.min(1, Math.abs(cr - p.valor)/p.valor);
+  const fitUp = upfront <= p.entrada ? 1 : Math.max(0, 1 - (upfront-p.entrada)/Math.max(p.entrada,1));
+  const fitParc = pmax <= cap ? 1 : Math.max(0, 1 - (pmax-cap)/cap);
+  const fitCost = isFinite(im) ? Math.max(0, Math.min(1, (0.015-im)/0.012)) : 0;
+  const score = Math.round(100*(0.3*fitCred + 0.3*fitUp + 0.25*fitParc + 0.15*fitCost)) - (parts.length>1 ? 4 : 0);
+  return { parts, cr, ent, sd, marg, prazo, p0, pmax, fin, im, cet, alav: cr/ent, compl, upfront, score,
+    limite: cr > LIMITE_SEM_AUMENTO,
+    ok: upfront <= p.entrada*1.05 && pmax <= cap*1.05 && cr >= p.valor*0.75 && cr <= p.valor*1.3 };
+}
+const memo = new Map();
+function match(p, c){
+  const key = JSON.stringify([p.cat,p.valor,p.entrada,p.renda,c]);
+  if(memo.has(key)) return memo.get(key);
+  const cap = p.renda * c.renda;
+  const pool = priced(c, p.cat==='imovel' ? 'I' : 'A');
+  const singles = pool.filter(r=>r.cr>=p.valor*0.6 && r.cr<=p.valor*1.3).map(r=>condition([r],p,cap));
+  const cand = pool.filter(r=>r.cr>=p.valor*0.2 && r.cr<=p.valor*0.8 && r.pmax<=cap)
+    .sort((a,b)=>(a.ent/a.cr)-(b.ent/b.cr)).slice(0,120);
+  const pairs = [];
+  for(let a=0;a<cand.length;a++) for(let b=a+1;b<cand.length;b++){
+    const s = cand[a].cr + cand[b].cr;
+    if(s < p.valor*0.9 || s > p.valor*1.25 || cand[a].pmax + cand[b].pmax > cap*1.05) continue;
+    pairs.push(condition([cand[a],cand[b]],p,cap));
+  }
+  pairs.sort((x,y)=>y.score-x.score);
+  const all = [...singles, ...pairs.slice(0,40)].sort((x,y)=>y.score-x.score);
+  const fits = all.filter(x=>x.ok);
+  const res = { cap, fits, best: (fits.length ? fits : all).slice(0,5), exact: fits.length>0 };
+  memo.set(key,res); if(memo.size>200) memo.clear();
+  return res;
+}
+function financing(p, c){
+  const imovel = p.cat==='imovel';
+  const ent = Math.max(p.entrada, p.valor * (imovel?0.2:0.1));
+  const pv = Math.max(0, p.valor - ent), n = imovel ? 360 : 48, annual = imovel?c.finI:c.finA;
+  const i = Math.pow(1+annual,1/12)-1;
+  const pmt = pv>0 ? pv*i/(1-Math.pow(1+i,-n)) : 0;
+  return { ent, pmt, n, annual, total: ent + pmt*n };
+}
+
+
+/* ===== fluxo do cliente ===== */
+const ICON_HOUSE = '<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 15 16 5l12 10"/><path d="M7 13v13h18V13"/><path d="M13 26v-7h6v7"/></svg>';
+const ICON_CAR = '<svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M5 20v-4l3-6h16l3 6v4z"/><path d="M5 20v4h4v-4M23 20v4h4v-4"/><circle cx="10" cy="17" r="1.2" fill="currentColor"/><circle cx="22" cy="17" r="1.2" fill="currentColor"/></svg>';
+const ICON_OK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 10 17l9-10"/></svg>';
+const S = { step:0, cat:'imovel', valor:900000, entrada:420000, renda:28000, prazo:'ja', comprador:'pf', restricao:'nao', nome:'', fone:'', email:'', cpf:'', lgpd:false };
+const stepsBar = n => '<div class="steps">'+[0,1,2,3].map(i=>`<i class="${i<=n?'on':''}"></i>`).join('')+'</div>';
+
+function optCard(x, label){
+  const tag = x.ok ? '<span class="tag t-good">Cabe no seu orçamento</span>' : '<span class="tag t-warn">Pede um ajuste</span>';
+  const combo = x.parts.length>1 ? '<span class="combo">2 créditos somados</span>' : '';
+  const compl = x.compl>0 ? `<p class="fine" style="margin-top:8px">Você completa ${brl(x.compl)} com recursos próprios.</p>` : '';
+  return `<div class="opt"><div class="opt-top"><div><span class="hint">${label}</span>${combo}<br><b class="num">${brl(x.cr)}</b></div>${tag}</div>
+    <div class="opt-grid"><div><span>Entrada</span><b>${brl(x.ent)}</b></div><div><span>Parcela inicial</span><b>${brl(x.p0)}</b></div><div><span>Prazo</span><b>~${Math.round(x.prazo)} meses</b></div></div>${compl}</div>`;
+}
+function renderFlow(){
+  const f = $('flow'); const c = cfg();
+  if(S.step===0){
+    f.innerHTML = stepsBar(0)+`
+      <div class="q-eyebrow">Simulação gratuita · 1 minuto</div>
+      <h1 class="q">O que você quer comprar?</h1>
+      <div class="choices">
+        <button class="choice" id="chI" aria-pressed="${S.cat==='imovel'}">${ICON_HOUSE}<b>Casa ou apartamento</b><span>Imóveis a partir de R$ 500 mil</span></button>
+        <button class="choice" id="chA" aria-pressed="${S.cat==='auto'}">${ICON_CAR}<b>Carro, moto ou caminhão</b><span>Veículos a partir de R$ 150 mil</span></button>
+      </div>
+      <div style="margin-top:16px"><button class="btn btn-main" id="next">Continuar</button></div>`;
+    $('chI').onclick=()=>{S.cat='imovel'; if(S.valor<500000){S.valor=900000;S.entrada=420000;} renderFlow();};
+    $('chA').onclick=()=>{S.cat='auto'; if(S.valor>800000){S.valor=250000;S.entrada=110000;} renderFlow();};
+    $('next').onclick=()=>{S.step=1;renderFlow();};
+  } else if(S.step===1){
+    const bem = S.cat==='imovel'?'o imóvel':'o veículo';
+    f.innerHTML = stepsBar(1)+`
+      <div class="q-eyebrow">Seu objetivo</div>
+      <h1 class="q">Quanto custa ${bem} que você quer?</h1>
+      <div class="field"><label for="iValor">Valor do bem</label><div class="money"><span>R$</span><input id="iValor" inputmode="numeric" value="${fmtMoneyInput(S.valor)}"></div></div>
+      <div class="field"><label for="iEnt">Quanto você tem hoje para dar de entrada?</label><div class="money"><span>R$</span><input id="iEnt" inputmode="numeric" value="${fmtMoneyInput(S.entrada)}"></div><span class="hint">Pode ser dinheiro aplicado, FGTS ou a venda de outro bem.</span></div>
+      <div class="row-btns"><button class="btn btn-ghost" id="back">Voltar</button><button class="btn btn-main" id="next">Continuar</button></div>`;
+    bindMoney('iValor', v=>S.valor=v); bindMoney('iEnt', v=>S.entrada=v);
+    $('back').onclick=()=>{S.step=0;renderFlow();};
+    $('next').onclick=()=>{ if(S.valor<10000){toast('Informe o valor do bem');return;} S.step=2;renderFlow();};
+  } else if(S.step===2){
+    f.innerHTML = stepsBar(2)+`
+      <div class="q-eyebrow">Seu orçamento</div>
+      <h1 class="q">Qual é a renda para essa compra?</h1>
+      <div class="field"><label for="iComp">Quem vai comprar?</label>
+        <select id="iComp" class="txt"><option value="pf">Eu, com a minha renda</option><option value="familia">Eu, somando a renda da família</option><option value="empresa">A minha empresa</option></select></div>
+      <div class="field"><label for="iRenda" id="lRenda">Renda bruta mensal</label><div class="money"><span>R$</span><input id="iRenda" inputmode="numeric" value="${fmtMoneyInput(S.renda)}"></div><span class="hint" id="capHint"></span></div>
+      <div class="field"><label for="iRest">Há alguma restrição no CPF ou CNPJ hoje?</label>
+        <select id="iRest" class="txt"><option value="nao">Não</option><option value="sim">Sim</option><option value="nao_sei">Não sei</option></select></div>
+      <div class="field"><label for="iPrazo">Quando você pretende comprar?</label>
+        <select id="iPrazo" class="txt"><option value="ja">Agora, já estou procurando</option><option value="3m">Nos próximos 3 meses</option><option value="6m">Em 6 meses ou mais</option></select></div>
+      <div class="row-btns"><button class="btn btn-ghost" id="back">Voltar</button><button class="btn btn-main" id="next">Ver meus números</button></div>`;
+    const lab = {pf:'Renda bruta mensal', familia:'Renda bruta mensal da família', empresa:'Renda mensal comprovada da empresa'};
+    $('iComp').value=S.comprador; $('lRenda').textContent=lab[S.comprador];
+    $('iComp').onchange=e=>{S.comprador=e.target.value; $('lRenda').textContent=lab[S.comprador];};
+    $('iRest').value=S.restricao; $('iRest').onchange=e=>S.restricao=e.target.value;
+    $('iPrazo').value=S.prazo; $('iPrazo').onchange=e=>S.prazo=e.target.value;
+    const upd=()=>$('capHint').textContent = S.renda ? `Parcela que cabe no orçamento: até ${brl(S.renda*c.renda)} por mês.` : '';
+    bindMoney('iRenda', v=>{S.renda=v;upd();}); upd();
+    $('back').onclick=()=>{S.step=1;renderFlow();};
+    $('next').onclick=()=>{ if(S.renda<1000){toast('Informe a renda');return;} S.step=3;renderFlow();};
+  } else if(S.step===3){
+    const m = match(S, c), fin = financing(S, c), b = m.best[0];
+    const bem = S.cat==='imovel'?'imóvel':'veículo';
+    let opts = b ? optCard(b,'Melhor condição') : '';
+    if(m.best.length>1){
+      opts += `<div class="lock">${m.best.slice(1,3).map((x,k)=>optCard(x,'Condição '+(k+2))).join('')}<div class="lock-msg">+ ${Math.max(m.fits.length,m.best.length)-1} condições liberadas<br>quando você deixar seu contato</div></div>`;
+    }
+    const better = b && b.cet < fin.annual;
+    f.innerHTML = stepsBar(3)+`
+      <div class="q-eyebrow">Seus números</div>
+      <h1 class="q">${m.exact ? `Encontramos ${m.fits.length} ${m.fits.length===1?'condição':'condições'} para o seu ${bem}` : `Seu ${bem} é possível com um ajuste`}</h1>
+      <div class="cap"><small>Parcela que cabe no orçamento</small><div class="big num">${brl(m.cap)}</div><p>${b ? `Crédito já liberado: você compra à vista o ${bem} que escolher. Cada R$ 1,00 de entrada compra ${alavR(b.alav)} em crédito.` : 'Ainda não temos uma condição nesse valor, mas um especialista monta uma alternativa.'}</p></div>
+      ${opts}
+      ${b ? `<div class="compare">
+        <div class="${better?'win':''}"><span>Custo efetivo desta condição</span><b>${pct(b.cet)} a.a.</b></div>
+        <div class="${better?'':'win'}"><span>Financiamento bancário (referência)</span><b>${pct(fin.annual)} a.a.</b></div></div>` : ''}
+      <button class="btn btn-main" id="next">Quero receber a proposta</button>
+      <button class="btn btn-ghost" style="width:100%;margin-top:8px" id="back">Refazer simulação</button>
+      <p class="fine">Valores de referência, sujeitos a análise de crédito e à disponibilidade da condição. Um especialista apresenta todos os detalhes e o contrato antes de qualquer compromisso. Financiamento bancário de referência: ${pct(fin.annual)} ao ano em ${fin.n} meses.</p>`;
+    $('next').onclick=()=>{S.step=4;renderFlow();};
+    $('back').onclick=()=>{S.step=0;renderFlow();};
+  } else if(S.step===4){
+    f.innerHTML = stepsBar(3)+`
+      <div class="q-eyebrow">Último passo</div>
+      <h1 class="q">Para onde enviamos sua proposta?</h1>
+      <form id="leadForm" novalidate>
+        <div class="field"><label for="fNome">Nome</label><input class="txt" id="fNome" autocomplete="name" value="${esc(S.nome)}"></div>
+        <div class="field"><label for="fFone">WhatsApp</label><input class="txt" id="fFone" inputmode="tel" autocomplete="tel" placeholder="(11) 9 0000-0000" value="${esc(S.fone)}"></div>
+        <div class="field"><label for="fMail">E-mail</label><input class="txt" id="fMail" inputmode="email" autocomplete="email" value="${esc(S.email)}"></div>
+        <div class="field"><label for="fCpf">CPF ou CNPJ <span class="hint">(opcional, agiliza a análise)</span></label><input class="txt" id="fCpf" inputmode="numeric" value="${esc(S.cpf)}"></div>
+        <label class="check"><input type="checkbox" id="fLgpd" ${S.lgpd?'checked':''}><span>Autorizo a MGG Negócios a usar estes dados para me apresentar condições de compra e entrar em contato, conforme a LGPD.</span></label>
+        <div class="err" id="fErr"></div>
+        <button class="btn btn-main" type="submit" id="fSend">Enviar e receber no WhatsApp</button>
+      </form>
+      <button class="btn btn-ghost" style="width:100%;margin-top:8px" id="back">Voltar</button>`;
+    $('back').onclick=()=>{S.step=3;renderFlow();};
+    $('leadForm').addEventListener('submit', async e=>{
+      e.preventDefault();
+      S.nome=$('fNome').value.trim(); S.fone=$('fFone').value.trim(); S.email=$('fMail').value.trim(); S.cpf=$('fCpf').value.trim(); S.lgpd=$('fLgpd').checked;
+      if(S.nome.length<2){$('fErr').textContent='Informe seu nome.';return;}
+      if(S.fone.replace(/\D/g,'').length<10){$('fErr').textContent='Informe um WhatsApp com DDD.';return;}
+      if(!S.lgpd){$('fErr').textContent='Marque a autorização para podermos te enviar a proposta.';return;}
+      $('fSend').disabled = true;
+      sendLead();
+      S.step=5; renderFlow();
+    });
+  } else {
+    const wa = waLink();
+    f.innerHTML = `<div class="done"><div class="ok" style="color:var(--good)">${ICON_OK}</div>
+      <h1 class="q" style="margin-bottom:8px">Pronto, ${esc((S.nome||'').split(' ')[0])}!</h1>
+      <p style="color:var(--ink-2);margin:0 0 18px">Um especialista vai te chamar no WhatsApp com a proposta completa.</p>
+      ${wa ? `<a class="btn btn-main" style="text-decoration:none" href="${wa}" target="_blank" rel="noopener">Falar agora no WhatsApp</a>` : ''}
+      <button class="btn btn-ghost" style="width:100%;margin-top:8px" id="again">Fazer outra simulação</button></div>`;
+    $('again').onclick=()=>{Object.assign(S,{step:0,nome:'',fone:'',email:'',cpf:'',lgpd:false});renderFlow();};
+  }
+}
+function bindMoney(id, set){
+  const el=$(id);
+  el.addEventListener('input',()=>{ const v=parseMoney(el.value); set(v); el.value=fmtMoneyInput(v); });
+}
+
+
+
+/* ===== envio do lead: planilha (Apps Script), pixel da Meta e WhatsApp ===== */
+const CFG = window.CHAVE_CONFIG || {};
+const UTM = (()=>{ const q=new URLSearchParams(location.search), o={}; ['utm_source','utm_medium','utm_campaign','utm_content','utm_term','fbclid','gclid'].forEach(k=>{ if(q.get(k)) o[k]=q.get(k); }); return o; })();
+function bestOf(){ try{ const m=match(S,cfg()); return m.best[0]; }catch(e){ return null; } }
+function sendLead(){
+  const b = bestOf();
+  const lead = { criadoEm:new Date().toISOString(), nome:S.nome, whatsapp:S.fone, email:S.email, cpf_cnpj:S.cpf,
+    bem:S.cat==='imovel'?'Imóvel':'Veículo', valor:S.valor, entrada:S.entrada, renda:S.renda,
+    comprador:S.comprador, restricao:S.restricao, prazo:S.prazo,
+    condicoes: b ? (match(S,cfg()).fits.length) : 0,
+    credito_sugerido: b?Math.round(b.cr):'', entrada_sugerida: b?Math.round(b.ent):'', parcela_inicial: b?Math.round(b.p0):'',
+    prazo_meses: b?Math.round(b.prazo):'', cet_aa: b?Number((b.cet*100).toFixed(2)):'', ...UTM, pagina: location.href };
+  try{ if(window.fbq) fbq('track','Lead',{value:b?Math.round(b.cr*0.035):0,currency:'BRL'}); }catch(e){}
+  if(CFG.sheetUrl){
+    fetch(CFG.sheetUrl,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(lead)}).catch(()=>{});
+  } else {
+    try{ const k='chavecerta_leads_teste'; const a=JSON.parse(localStorage.getItem(k)||'[]'); a.push(lead); localStorage.setItem(k,JSON.stringify(a)); }catch(e){}
+    console.warn('Chave Certa: sheetUrl não configurado em config.js. Lead guardado só neste navegador.', lead);
+  }
+}
+function waLink(){
+  const n=(CFG.whatsapp||'').replace(/\D/g,''); if(!n) return '';
+  const b=bestOf(); const bem=S.cat==='imovel'?'um imóvel':'um veículo';
+  const t=`Olá! Sou ${S.nome}. Fiz a simulação para ${bem} de ${brl(S.valor)}, com ${brl(S.entrada)} de entrada${b?`. Condição sugerida: crédito de ${brl(b.cr)} e parcela inicial de ${brl(b.p0)}`:''}. Quero receber a proposta.`;
+  return `https://wa.me/${n}?text=${encodeURIComponent(t)}`;
+}
+function loadPixel(id){
+  !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
+  fbq('init', id); fbq('track','PageView');
+}
+if(CFG.pixelId) loadPixel(CFG.pixelId);
+if(CFG.cnpj){ const el=$('cnpj'); if(el) el.textContent=' · CNPJ '+CFG.cnpj; }
+if(CFG.empresa){ document.querySelectorAll('[data-empresa]').forEach(el=>el.textContent=CFG.empresa); }
+let BASE = [];
+fetch('cartas.json',{cache:'no-cache'}).then(r=>r.json()).then(d=>{ BASE=d; renderFlow(); }).catch(()=>{ $('flow').innerHTML='<p class="err">Não foi possível carregar as condições agora. Tente novamente em instantes.</p>'; });
+
+</script>
+</body></html>
