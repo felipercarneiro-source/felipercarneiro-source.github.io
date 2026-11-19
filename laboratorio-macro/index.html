@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Laboratório Macro Brasil — simulador de regimes</title>
+<style>
+.viz-root{color-scheme:light;--surface-0:#f4f3ef;--surface-1:#fcfcfb;--border:#dddcd6;--grid:#ebeae5;--text-primary:#0b0b0b;--text-secondary:#52514e;--text-muted:#7a7974;--series-1:#2a78d6;--series-2:#eb6834;--series-3:#1baf7a;--accent:#2a78d6;--warn:#b45309}
+@media (prefers-color-scheme:dark){:root:where(:not([data-theme="light"])) .viz-root{color-scheme:dark;--surface-0:#121211;--surface-1:#1a1a19;--border:#34332f;--grid:#2a2a27;--text-primary:#f0efec;--text-secondary:#c3c2b7;--text-muted:#8f8e86;--series-1:#3987e5;--series-2:#d95926;--series-3:#199e70;--accent:#3987e5;--warn:#f59e0b}}
+:root[data-theme="dark"] .viz-root{color-scheme:dark;--surface-0:#121211;--surface-1:#1a1a19;--border:#34332f;--grid:#2a2a27;--text-primary:#f0efec;--text-secondary:#c3c2b7;--text-muted:#8f8e86;--series-1:#3987e5;--series-2:#d95926;--series-3:#199e70;--accent:#3987e5;--warn:#f59e0b}
+*{box-sizing:border-box}
+body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.viz-root{background:var(--surface-0);color:var(--text-primary);min-height:100vh;padding:28px 20px 60px}
+.wrap{max-width:1180px;margin:0 auto}
+h1{font-size:28px;margin:0 0 6px;letter-spacing:-.01em}
+h2{font-size:19px;margin:36px 0 8px}
+h3{font-size:14px;margin:0 0 6px;color:var(--text-secondary);font-weight:600}
+p,li{color:var(--text-secondary);line-height:1.55;font-size:14.5px}
+.lede{font-size:16px;max-width:820px}
+.card{background:var(--surface-1);border:1px solid var(--border);border-radius:12px;padding:16px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:860px){.grid3,.grid2{grid-template-columns:1fr}}
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:10px 0 14px}
+.pill{border:1px solid var(--border);background:var(--surface-1);color:var(--text-primary);border-radius:999px;padding:7px 12px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:7px}
+.pill[aria-pressed="true"]{border-color:var(--text-primary);font-weight:600}
+.sw{width:10px;height:10px;border-radius:3px;display:inline-block}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--text-secondary);margin:4px 0 10px}
+.legend span{display:flex;align-items:center;gap:6px}
+svg text{fill:var(--text-muted);font-size:11px}
+.tip{position:fixed;pointer-events:none;background:var(--surface-1);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:12px;color:var(--text-primary);box-shadow:0 4px 14px rgba(0,0,0,.12);display:none;z-index:10;min-width:160px}
+.tip .r{display:flex;justify-content:space-between;gap:12px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:7px 8px;border-bottom:1px solid var(--border);text-align:right;color:var(--text-primary)}
+th{color:var(--text-secondary);font-weight:600}
+th:first-child,td:first-child{text-align:left}
+.slider{display:grid;grid-template-columns:1fr 64px;gap:4px 10px;align-items:center;font-size:13px;color:var(--text-secondary);margin-bottom:8px}
+.slider input{grid-column:1/3;width:100%}
+.slider b{text-align:right;color:var(--text-primary);font-variant-numeric:tabular-nums}
+.chk{font-size:13px;color:var(--text-secondary);display:flex;gap:8px;align-items:center;margin:6px 0}
+.note{font-size:12.5px;color:var(--text-muted)}
+.anat{display:flex;height:34px;border-radius:6px;overflow:hidden;gap:2px;margin:10px 0 6px}
+.anat div{display:flex;align-items:center;justify-content:center;font-size:12px;color:#fff;font-weight:600;white-space:nowrap;overflow:hidden}
+.kpi{font-size:26px;font-weight:700;color:var(--text-primary);font-variant-numeric:tabular-nums}
+.swt td,.swt th{text-align:center}
+.swt td.hot{font-weight:700}
+.btn{border:1px solid var(--border);background:var(--surface-1);color:var(--text-primary);border-radius:8px;padding:6px 10px;font-size:12.5px;cursor:pointer}
+</style></head>
+<script>
+// Laboratório Macro Brasil — modelo anual 2026-2040
+// Ideia central: o juro real brasileiro = juro mundial + PRÊMIO INSTITUCIONAL (endógeno à dívida
+// e à credibilidade) + postura monetária. A credibilidade é um estoque: sobe devagar, cai rápido.
+// A inflação esperada mistura âncora da meta e inflação de "dominância fiscal" (Sargent-Wallace,
+// como no paper Loureiro/UBS 2016), ponderada pela probabilidade de dominância.
+
+(function (root) {
+  function rng(seed) { // mulberry32
+    let a = seed >>> 0;
+    return function () {
+      a |= 0; a = (a + 0x6d2b79f5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function gauss(r) { let u = 0, v = 0; while (u === 0) u = r(); v = r();
+    return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+  const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+  const logistic = x => 1 / (1 + Math.exp(-x));
+
+  // Fórmula do paper (Sargent-Wallace): inflação que fecha o orçamento só com senhoriagem
+  // pi = 1 / [(1+g)(1+v*F) - v*i*D] - 1 ; F = resultado primário (% PIB, + = superávit)
+  function piSW(g, v, F, i, D) {
+    const den = (1 + g) * (1 + v * F) - v * i * D;
+    if (den <= 0.35) return 1.5; // explosivo: teto em 150%
+    return Math.min(1.5, 1 / den - 1);
+  }
+
+  // ---------- Regimes ----------
+  // primPath: superávit primário alvo (% PIB) por ano desde 2026
+  const base = {
+    nome: 'Status quo (plano do governo com derrapagem histórica)',
+    primPath: [-0.8, -0.3, 0.2, 0.6, 1.0, 1.25, 1.5],
+ entrega: 0.65,          // fração do ajuste prometido que de fato é entregue
+    bcAutonomo: true,
+    selicForcada: null,     // [ano, nível] para interferência
+    credAlvoUp: 0.015,      // ganho anual de credibilidade se cumpre
+    shareSelic: [0.47, 0.47], // % da dívida pós-fixada (LFT+compromissadas) início -> fim
+    vendaAtivos: 0,         // pp do PIB/ano de dívida recomprada com ativos (5 anos)
+    investExtra: 0,         // pp PIB/ano de investimento público alavancado
+    eficiencia: 0.35,       // fração do investimento que vira capital produtivo
+    regraAlgoritmica: false,
+    creditoDual: false,
+  };
+  const REGIMES = {
+    base,
+    turquia: Object.assign({}, base, {
+      nome: 'Rota Turquia (interferência no BC, Selic na marra)',
+      bcAutonomo: false, selicForcada: { de: 2027, ate: 2029, nivel: 8.0 },
+      primPath: [-0.8, -1.3, -1.2, -1.0, -0.8, -0.5, -0.3], entrega: 1.0, credAlvoUp: 0.0,
+      reacaoCrise: false,
+    }),
+    ortodoxo: Object.assign({}, base, {
+      nome: 'Choque ortodoxo (superávit de 2,5% rápido)',
+      primPath: [-0.8, 0.5, 1.5, 2.2, 2.5, 2.5, 2.5], entrega: 0.85, credAlvoUp: 0.05,
+    }),
+    algoritmo: Object.assign({}, base, {
+      nome: 'Regra fiscal algorítmica (gatilho automático + conselho fiscal)',
+      regraAlgoritmica: true, entrega: 1.0, credAlvoUp: 0.07,
+      primPath: [-0.8, 0.0, 0.6, 1.2, 1.6, 1.8, 1.8],
+    }),
+    desalavanca: Object.assign({}, base, {
+      nome: 'Balanço soberano (reperfilar LFT + vender/securitizar ativos)',
+      shareSelic: [0.47, 0.22], vendaAtivos: 1.2, credAlvoUp: 0.025,
+    }),
+    alavancado: Object.assign({}, base, {
+      nome: 'Alavancagem desenvolvimentista (investir +1,5% PIB com dívida)',
+      investExtra: 1.5, eficiencia: 0.35, creditoDual: true,
+    }),
+    foraDaCaixa: Object.assign({}, base, {
+      nome: 'Pacote "fora da caixa" combinado',
+      regraAlgoritmica: true, entrega: 1.0, credAlvoUp: 0.07,
+      primPath: [-0.8, 0.0, 0.5, 1.0, 1.3, 1.5, 1.5],
+      shareSelic: [0.47, 0.22], vendaAtivos: 1.0,
+      investExtra: 1.0, eficiencia: 0.7, creditoDual: true,
+    }),
+  };
+
+  // ---------- Parâmetros estruturais (calibração nov/2026) ----------
+  const P = {
+    anos: 11, ano0: 2026,
+    b0: 82.9,            // DBGG % PIB (BCB, set/26)
+    pi0: 4.9, piStar: 3.0,
+    selic0: 13.75,
+    C0: 0.45,            // credibilidade inicial (0-1)
+    rWorld: 1.9,         // juro real neutro "mundial" (TIPS ~ alto em 2026)
+    rhoMin: 0.8, kDebt: 0.06, kCred: 4.4,  // prêmio = rhoMin + kDebt*(b-60) + kCred*(1-C)
+    gPot0: 1.9,
+    vel: 2.4,            // velocidade da moeda (M2)
+    sigPi: 0.9, sigG: 1.1, sigRho: 0.7, sigFisc: 0.5, sigCred: 0.04,
+  };
+
+  function simulate(regime, opts) {
+    opts = opts || {};
+    const p = Object.assign({}, P, opts.params || {});
+    const R = Object.assign({}, regime, opts.override || {});
+    const r = rng(opts.seed || 1);
+    const noise = opts.deterministic ? () => 0 : () => gauss(r);
+    const T = p.anos;
+    let b = p.b0, pi = p.pi0, piPrev = 5.2, C = p.C0, gap = -0.3, selic = p.selic0;
+    let kCap = 0, rhoPrev = null, rStock = 3.5, stress = 0, poder = 100, slipShock = 0, crisis = false;
+    const out = { ano: [], divida: [], inflacao: [], selic: [], juroReal: [], pib: [], premio: [],
+      cred: [], primario: [], piE: [], qDom: [], cambio: [], acesso: [], poder: [] };
+    let fx = 100;
+    for (let t = 0; t < T; t++) {
+      const ano = p.ano0 + t;
+      const share = R.shareSelic[0] + (R.shareSelic[1] - R.shareSelic[0]) * Math.min(1, t / 5);
+
+      // 1) Primário: alvo do regime x entrega + estabilizador automático + ruído
+      const alvo = R.primPath[Math.min(t, R.primPath.length - 1)];
+      let prim = R.primPath[0] + (alvo - R.primPath[0]) * R.entrega + 0.3 * gap + p.sigFisc * noise();
+      if (R.regraAlgoritmica) {
+        // gatilho: se dívida acima da trajetória-alvo (cai 1pp/ano a partir de 2029), corta gasto auto
+        const trilha = t < 3 ? p.b0 + 2 : p.b0 + 2 - (t - 2);
+        if (b > trilha) prim += Math.min(0.8, 0.25 * (b - trilha));
+      }
+      // Reação de crise: historicamente o Brasil ajusta sob pressão (1999, 2016). Exceto se o regime nega.
+      if (R.reacaoCrise !== false && t > 0) {
+        stress = Math.max(0, stress * 0.8 + (b > 95 ? 0.4 : 0) + (pi > 10 ? 0.4 : 0));
+        prim += Math.min(2.5, stress);
+      }
+      if (t === 0) prim = -0.8;
+      prim -= R.investExtra * (t > 0 ? 1 : 0); // investimento alavancado fica fora... mas é dívida
+
+      // 2) Credibilidade (estoque assimétrico)
+      if (t > 0) {
+        let dC = 0;
+        const falta = alvo - (prim + R.investExtra);
+        dC += falta <= 0.3 ? R.credAlvoUp : -0.03 * Math.min(2, falta);
+        if (!R.bcAutonomo && R.selicForcada && ano >= R.selicForcada.de && ano <= R.selicForcada.ate) dC -= 0.18;
+        if (R.investExtra > 0) dC -= 0.02 * R.investExtra * (1 - R.eficiencia) * (R.regraAlgoritmica ? 0.4 : 1);
+        if (R.creditoDual && !R.regraAlgoritmica) dC -= 0.015;
+        if (pi > 8) dC -= 0.02;
+        if (b > 95) dC -= 0.015;
+        C = clamp(C + dC + p.sigCred * noise(), 0.02, 0.95);
+      }
+
+      // 3) Prêmio institucional (pp)
+      let rho = p.rhoMin + p.kDebt * (b - 60) + p.kCred * (1 - C) + p.sigRho * noise();
+      if (share < 0.47) rho += 0.6 * (0.47 - share); // alongar custa prêmio de prazo
+      rho = Math.max(0.3, rho);
+      const rNeutroLocal = p.rWorld + rho; // juro real "de equilíbrio" que o mercado exige
+
+      // 4) Probabilidade de dominância fiscal e inflação esperada (mistura Loureiro/UBS)
+      let q = logistic(-4.9 + 0.09 * (b - 80) + 4.0 * (1 - C) + (R.bcAutonomo ? 0 : 1.8) - (share < 0.3 ? 0.6 : 0));
+      const gPotNow = p.gPot0 - 0.12 * (rho - 4) + 0.06 * kCap + (R.creditoDual ? 0.15 : 0);
+      const piDom = 100 * piSW(gPotNow / 100, p.vel, prim / 100, rNeutroLocal / 100, b / 100);
+      const ancorada = C * p.piStar + (1 - C) * (0.5 * piPrev + 0.5 * pi);
+      const piE = (1 - q) * ancorada + q * Math.min(piDom, 60);
+
+      // 5) Selic
+      let selicNew;
+      if (R.selicForcada && ano >= R.selicForcada.de && ano <= R.selicForcada.ate) {
+        selicNew = R.selicForcada.nivel;
+      } else {
+        selicNew = rNeutroLocal + piE + 1.5 * (pi - p.piStar) + 0.5 * gap;
+        if (R.selicForcada && ano > R.selicForcada.ate) selicNew += 2; // tem que reconquistar
+        selicNew = 0.45 * selic + 0.55 * selicNew; // suavização
+      }
+      if (t === 0) selicNew = p.selic0;
+      selicNew = Math.max(2, selicNew);
+      const juroReal = selicNew - piE;
+
+      // 6) Câmbio: deprecia com aumento do prêmio e com juro real abaixo do exigido
+      const dRho = rhoPrev === null ? 0 : rho - rhoPrev;
+      const fxDep = 3.0 * dRho + 0.8 * Math.max(0, rNeutroLocal - juroReal) + (pi - 2.5) + 2.0 * noise();
+      fx *= 1 + fxDep / 100;
+
+      // 7) Hiato e crescimento
+      const impulso = t > 0 ? -0.5 * (prim - out.primario[t - 1]) : 0; // multiplicador fiscal
+      const investBoost = R.investExtra * (0.4 + 0.8 * R.eficiencia) * (t > 0 ? 1 : 0) * (t < 2 ? 1 : 0.5);
+      gap = 0.55 * gap - 0.22 * (juroReal - rNeutroLocal) + impulso + 0.3 * investBoost
+            - (q > 0.5 ? 1.5 * (q - 0.5) : 0) + p.sigG * noise();
+      gap = clamp(gap, -8, 5);
+      kCap += R.investExtra * R.eficiencia;
+      const g = gPotNow + (t > 0 ? gap - out._gapPrev : 0);
+      out._gapPrev = gap;
+
+      // 8) Inflação: expectativas + inércia + hiato + repasse cambial
+      const piNew = 0.55 * piE + 0.30 * pi + 0.25 * gap + 0.07 * fxDep + p.sigPi * noise();
+      piPrev = pi; pi = t === 0 ? p.pi0 : Math.max(-1, piNew);
+
+      // 9) Dívida: juro real efetivo = mix pós-fixado (Selic real) + prefixado/IPCA longo
+      // estoque prefixado/IPCA tem taxas travadas: reprecifica ~25%/ano (duration ~4 anos)
+      rStock = 0.75 * rStock + 0.25 * rNeutroLocal;
+      // 0.7 = calibração ao custo real implícito observado da DBGG (~5% a.a. em 2026)
+      const rDivida = 0.7 * share * (selicNew - pi) + (1 - share) * rStock;
+      const senhoriagem = q > 0.6 && !R.bcAutonomo ? Math.min(3, pi / 20) : 0;
+      if (t > 0) {
+        b = b * (1 + rDivida / 100) / (1 + g / 100) - prim - senhoriagem
+            - (t <= 5 ? R.vendaAtivos : 0);
+        b = Math.max(20, b);
+      }
+
+      // 10) "Inflação do acesso": parcela da renda para financiar imóvel (30 anos, taxa ≈ 0,7·Selic + 2,5)
+      const iMort = (0.7 * selicNew + 2.5) / 100 / 12, n = 360;
+      const pmt = iMort / (1 - Math.pow(1 + iMort, -n)); // por R$1 financiado
+      const acesso = pmt * 1000; // R$ de prestação por R$1.000 financiados (sem correção)
+      // Poder de compra: renda per capita real menos "imposto inflacionário" e custo do crédito
+      poder *= 1 + (g - 0.5 - 0.3 * Math.max(0, pi - 4.5) - 0.05 * Math.max(0, juroReal - 5)) / 100;
+
+      rhoPrev = rho; selic = selicNew;
+      out.ano.push(ano); out.divida.push(b); out.inflacao.push(pi); out.selic.push(selicNew);
+      out.juroReal.push(juroReal); out.pib.push(g); out.premio.push(rho); out.cred.push(C);
+      out.primario.push(prim); out.piE.push(piE); out.qDom.push(q); out.cambio.push(fx); out.acesso.push(acesso);
+      out.poder.push(poder);
+    }
+    delete out._gapPrev;
+    return out;
+  }
+
+  function monteCarlo(regime, N, opts) {
+    N = N || 500; opts = opts || {};
+    const runs = [];
+    for (let k = 0; k < N; k++) runs.push(simulate(regime, Object.assign({}, opts, { seed: 1000 + k * 7919 })));
+    const keys = Object.keys(runs[0]).filter(k => k !== 'ano');
+    const T = runs[0].ano.length;
+    const pct = (arr, q) => { const s = arr.slice().sort((a, b) => a - b); return s[Math.floor(q * (s.length - 1))]; };
+    const res = { ano: runs[0].ano };
+    for (const k of keys) {
+      res[k] = { p10: [], p50: [], p90: [] };
+      for (let t = 0; t < T; t++) {
+        const col = runs.map(r => r[k][t]);
+        res[k].p10.push(pct(col, 0.1)); res[k].p50.push(pct(col, 0.5)); res[k].p90.push(pct(col, 0.9));
+      }
+    }
+    const last = T - 1, i30 = 4;
+    res.resumo = {
+      divida2030: pct(runs.map(r => r.divida[i30]), 0.5),
+      divida2036: pct(runs.map(r => r.divida[last]), 0.5),
+      inflMedia: pct(runs.map(r => r.inflacao.slice(1).reduce((a, b) => a + b, 0) / (T - 1)), 0.5),
+      selic2030: pct(runs.map(r => r.selic[i30]), 0.5),
+      selic2036: pct(runs.map(r => r.selic[last]), 0.5),
+      pibMedio: pct(runs.map(r => r.pib.slice(1).reduce((a, b) => a + b, 0) / (T - 1)), 0.5),
+      poder2036: pct(runs.map(r => r.poder[last]), 0.5),
+      probDivida100: runs.filter(r => Math.max(...r.divida) > 100).length / N,
+      probRuptura: runs.filter(r => r.divida.some((d, i) => d > 110 || r.inflacao[i] > 15)).length / N,
+      probInfl10: runs.filter(r => Math.max(...r.inflacao) > 10).length / N,
+      cambio2030: pct(runs.map(r => r.cambio[i30]), 0.5),
+    };
+    return res;
+  }
+
+  const API = { simulate, monteCarlo, REGIMES, P, piSW };
+  if (typeof module !== 'undefined') module.exports = API; else root.MacroLab = API;
+})(this);
+</script>
+<body><div class="viz-root"><div class="wrap">
+<h1>Laboratório Macro Brasil</h1>
+<p class="lede">Um simulador para testar caminhos diferentes para a economia brasileira de 2026 a 2036. A tese que ele formaliza: <b>a Selic alta não paga só inflação, paga um prêmio institucional</b>, que depende da dívida e de uma credibilidade que demora a ser construída e se perde rápido. A inflação esperada mistura a meta com a inflação de dominância fiscal da “aritmética desagradável” (Sargent-Wallace), como no paper de Guilherme Loureiro na UBS (2016).</p>
+<p class="note">Calibração de nov/2026: Selic 13,75%, IPCA 12m 4,63%, dívida bruta 82,9% do PIB, primário de cerca de −0,8% do PIB. É um modelo de brinquedo, sério mas pequeno: serve para testar o raciocínio, não para prever números. Cada regime roda 300 trajetórias com choques aleatórios; as faixas mostram do percentil 10 ao 90.</p>
+
+<h2>1. Anatomia da Selic hoje (segundo o modelo)</h2>
+<div class="card">
+<div class="anat" id="anat"></div>
+<div class="legend" id="anatLeg"></div>
+<p class="note" id="anatTxt"></p>
+</div>
+
+<h2>2. Compare regimes</h2>
+<p>Escolha até 3. O “Seu regime” usa os controles da seção 3.</p>
+<div class="controls" id="regBtns"></div>
+<div class="legend" id="leg"></div>
+<div class="grid3" id="charts"></div>
+<div class="card" style="margin-top:14px;overflow-x:auto"><h3>Resumo (mediana das trajetórias)</h3><table id="tbl"></table>
+<p class="note">Ruptura = dívida acima de 110% do PIB ou inflação acima de 15% em algum ano até 2036. Poder de compra é um índice heurístico (2026 = 100): crescimento per capita menos imposto inflacionário e custo do crédito.</p></div>
+
+<h2>3. Monte o seu regime</h2>
+<div class="grid2">
+<div class="card"><h3>Política fiscal e institucional</h3>
+<div class="slider"><span>Superávit primário prometido para 2032 (% PIB)</span><b id="v_prim"></b><input id="s_prim" type="range" min="-2" max="3.5" step="0.1" value="1.5"></div>
+<div class="slider"><span>Fração do ajuste que de fato é entregue</span><b id="v_ent"></b><input id="s_ent" type="range" min="0.2" max="1" step="0.05" value="0.65"></div>
+<div class="slider"><span>Ganho anual de credibilidade quando cumpre</span><b id="v_cred"></b><input id="s_cred" type="range" min="0" max="0.1" step="0.005" value="0.015"></div>
+<label class="chk"><input type="checkbox" id="c_regra"> Regra fiscal algorítmica (gatilho automático de corte se a dívida sair da trilha)</label>
+<label class="chk"><input type="checkbox" id="c_bc" checked> Banco Central autônomo</label>
+<div class="slider"><span>Se não for autônomo: Selic forçada em 2027–2029 (%)</span><b id="v_forc"></b><input id="s_forc" type="range" min="4" max="13" step="0.5" value="8"></div>
+</div>
+<div class="card"><h3>Balanço e alavancagem</h3>
+<div class="slider"><span>Dívida pós-fixada em 2031 (% do total; hoje ~47%)</span><b id="v_share"></b><input id="s_share" type="range" min="0.1" max="0.6" step="0.01" value="0.47"></div>
+<div class="slider"><span>Venda/securitização de ativos para recomprar dívida (pp PIB/ano, 5 anos)</span><b id="v_venda"></b><input id="s_venda" type="range" min="0" max="2" step="0.1" value="0"></div>
+<div class="slider"><span>Investimento público extra financiado com dívida (% PIB/ano)</span><b id="v_inv"></b><input id="s_inv" type="range" min="0" max="3" step="0.1" value="0"></div>
+<div class="slider"><span>Eficiência do investimento (fração que vira capital produtivo)</span><b id="v_ef"></b><input id="s_ef" type="range" min="0.1" max="0.9" step="0.05" value="0.35"></div>
+<label class="chk"><input type="checkbox" id="c_dual"> Juro dual: crédito direcionado a investimento via BC (estilo TLTRO)</label>
+<button class="btn" id="b_reset">Voltar ao status quo</button>
+</div>
+</div>
+<div class="card" style="margin-top:14px"><h3>Hipóteses globais (afetam todos os regimes)</h3>
+<div class="grid3">
+<div class="slider"><span>Juro real neutro mundial (%)</span><b id="v_rw"></b><input id="s_rw" type="range" min="0" max="3.5" step="0.1" value="1.9"></div>
+<div class="slider"><span>Sensibilidade do prêmio à credibilidade</span><b id="v_kc"></b><input id="s_kc" type="range" min="1" max="8" step="0.2" value="4.4"></div>
+<div class="slider"><span>Sensibilidade do prêmio à dívida (pp por 1pp de dívida acima de 60%)</span><b id="v_kd"></b><input id="s_kd" type="range" min="0.02" max="0.15" step="0.005" value="0.06"></div>
+</div></div>
+
+<h2>4. A tabela do Guilherme, atualizada</h2>
+<div class="card">
+<p>Inflação necessária para fechar o orçamento <b>só com emissão de moeda</b>, se o Tesouro perdesse acesso ao mercado: π = 1 / [(1+g)(1+v·F) − v·r·D] − 1. É um teto teórico, não uma previsão. Com r = 7% a fórmula reproduz a Figura 5 do paper de 2016.</p>
+<div class="grid3">
+<div class="slider"><span>Crescimento potencial g (%)</span><b id="v_g"></b><input id="s_g" type="range" min="0" max="3.5" step="0.1" value="1.9"></div>
+<div class="slider"><span>Velocidade da moeda v (M2; estimativa)</span><b id="v_v"></b><input id="s_v" type="range" min="1.5" max="3.2" step="0.1" value="2.4"></div>
+<div class="slider"><span>Juro real da dívida r (%)</span><b id="v_r"></b><input id="s_r" type="range" min="3" max="10" step="0.25" value="7.5"></div>
+</div>
+<div style="overflow-x:auto"><table class="swt" id="swt"></table></div>
+<p class="note">Em negrito: combinações que ficam abaixo de 10%. Hoje o país está perto da linha de 85% da dívida com primário entre −1% e 0%.</p>
+</div>
+
+<h2>5. Como ler os regimes</h2>
+<div class="grid2">
+<div class="card"><h3>Já testados no mundo real</h3>
+<p><b>Status quo.</b> Plano oficial de superávit crescente (até 1,5% do PIB), mas só ~65% do prometido entregue, como no histórico recente. O país reage quando a crise aperta (como em 1999 e 2016).</p>
+<p><b>Rota Turquia.</b> O governo força a Selic para 8% em 2027–2029 e expande gasto. A dívida/PIB até cai (a inflação corrói a dívida), mas o câmbio dispara, a credibilidade some e depois o juro precisa subir muito mais.</p>
+<p><b>Choque ortodoxo.</b> Superávit de 2,5% rápido. Funciona, mas com custo de crescimento no começo.</p></div>
+<div class="card"><h3>Fora da caixa (hipóteses para testar)</h3>
+<p><b>Regra algorítmica.</b> Credibilidade como contrato, não como promessa: um gatilho automático corta gasto quando a dívida sai da trilha, auditado por conselho fiscal independente. A hipótese é que o mercado acredita mais em regra automática do que em discurso.</p>
+<p><b>Balanço soberano.</b> Trocar dívida atrelada à Selic por títulos longos e usar ativos da União (participações, imóveis, dívida ativa securitizada) para recomprar dívida. Quebra o canal “Selic alta → dívida explode”.</p>
+<p><b>Alavancagem desenvolvimentista.</b> Pegar dívida para investir, como fazem os emergentes. O resultado depende de eficiência e, sobretudo, da moldura institucional.</p>
+<p><b>Pacote combinado.</b> Regra + balanço + investimento eficiente + juro dual para crédito produtivo.</p></div>
+</div>
+<p class="note" style="margin-top:20px">Limites honestos: os resultados dos regimes “fora da caixa” dependem diretamente da hipótese de quanto o mercado acredita neles (o parâmetro de ganho de credibilidade). Teste isso no slider: com ganho zero, a regra algorítmica perde quase toda a vantagem. Dados de partida: BCB, IBGE e Copom (nov/2026); material Monte Bravo “Visão de Mercados” (nov/2026); Loureiro, Carlos e De La Fuente, UBS (fev/2016).</p>
+</div><div class="tip" id="tip"></div></div>
+<script>
+const M = window.MacroLab;
+const $ = id => document.getElementById(id);
+const fmt = (x, d = 1) => x.toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d });
+const COLORS = ['var(--series-1)', 'var(--series-2)', 'var(--series-3)'];
+const NAMES = { base: 'Status quo', turquia: 'Rota Turquia', ortodoxo: 'Choque ortodoxo', algoritmo: 'Regra algorítmica',
+  desalavanca: 'Balanço soberano', alavancado: 'Alavancagem desenvolvimentista', foraDaCaixa: 'Pacote combinado', custom: 'Seu regime' };
+let selected = ['base', 'turquia', 'foraDaCaixa'];
+// cor fixa por posição de seleção, mas a entidade mantém a cor enquanto selecionada
+let colorOf = {}; selected.forEach((k, i) => colorOf[k] = i);
+
+function globals() { return { rWorld: +$('s_rw').value, kCred: +$('s_kc').value, kDebt: +$('s_kd').value }; }
+function customRegime() {
+  const alvo = +$('s_prim').value, start = -0.8, path = [];
+  for (let i = 0; i < 7; i++) path.push(start + (alvo - start) * i / 6);
+  return Object.assign({}, M.REGIMES.base, {
+    nome: 'Seu regime', primPath: path, entrega: +$('s_ent').value, credAlvoUp: +$('s_cred').value,
+    regraAlgoritmica: $('c_regra').checked, bcAutonomo: $('c_bc').checked,
+    selicForcada: $('c_bc').checked ? null : { de: 2027, ate: 2029, nivel: +$('s_forc').value },
+    reacaoCrise: $('c_bc').checked, shareSelic: [0.47, +$('s_share').value], vendaAtivos: +$('s_venda').value,
+    investExtra: +$('s_inv').value, eficiencia: +$('s_ef').value, creditoDual: $('c_dual').checked,
+  });
+}
+function regimeOf(k) { return k === 'custom' ? customRegime() : M.REGIMES[k]; }
+
+// ---------- botões ----------
+function drawButtons() {
+  const box = $('regBtns'); box.innerHTML = '';
+  Object.keys(NAMES).forEach(k => {
+    const b = document.createElement('button'); b.className = 'pill';
+    const on = selected.includes(k); b.setAttribute('aria-pressed', on);
+    b.innerHTML = (on ? `<span class="sw" style="background:${COLORS[colorOf[k]]}"></span>` : '') + NAMES[k];
+    b.onclick = () => {
+      if (on) { if (selected.length > 1) { selected = selected.filter(x => x !== k); delete colorOf[k]; } }
+      else {
+        if (selected.length >= 3) { const out = selected.shift(); delete colorOf[out]; }
+        const used = Object.values(colorOf); colorOf[k] = [0, 1, 2].find(i => !used.includes(i)); selected.push(k);
+      }
+      run();
+    };
+    box.appendChild(b);
+  });
+  $('leg').innerHTML = selected.map(k => `<span><span class="sw" style="background:${COLORS[colorOf[k]]}"></span>${NAMES[k]}</span>`).join('');
+}
+
+// ---------- gráficos ----------
+const CH = [
+  { key: 'divida', t: 'Dívida bruta (% do PIB)', d: 0 },
+  { key: 'inflacao', t: 'Inflação IPCA (% a.a.; eixo cortado em 40)', d: 1, clip: 40 },
+  { key: 'selic', t: 'Selic (% a.a.; eixo cortado em 60)', d: 1, clip: 60 },
+  { key: 'pib', t: 'Crescimento do PIB (% a.a.)', d: 1 },
+  { key: 'cred', t: 'Credibilidade institucional (0–1)', d: 2 },
+  { key: 'acesso', t: 'Prestação por R$ 1.000 financiados em imóvel (R$/mês)', d: 2, clip: 40 },
+];
+let RES = {};
+function drawCharts() {
+  const box = $('charts'); box.innerHTML = '';
+  CH.forEach(c => {
+    const W = 360, H = 200, L = 38, R = 20, Tm = 10, B = 24;
+    const anos = RES[selected[0]].ano;
+    let lo = Infinity, hi = -Infinity;
+    selected.forEach(k => { const s = RES[k][c.key]; s.p10.forEach(v => lo = Math.min(lo, v)); s.p90.forEach(v => hi = Math.max(hi, v)); });
+    if (c.clip) hi = Math.min(hi, c.clip);
+    if (c.key === 'cred') { lo = 0; hi = 1; }
+    const pad = c.key === "cred" ? 0 : ((hi - lo) * 0.08 || 1); lo -= pad; hi += pad;
+    const x = i => L + (W - L - R) * i / (anos.length - 1);
+    const y = v => Tm + (H - Tm - B) * (1 - (Math.min(Math.max(v, lo), hi) - lo) / (hi - lo));
+    let g = '';
+    for (let j = 0; j <= 4; j++) { const v = lo + (hi - lo) * j / 4; g += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--grid)"/><text x="${L - 5}" y="${y(v) + 4}" text-anchor="end">${fmt(v, c.d === 2 ? 1 : 0)}</text>`; }
+    anos.forEach((a, i) => { if (i % 2 === 0) g += `<text x="${x(i)}" y="${H - 6}" text-anchor="middle">${a}</text>`; });
+    selected.forEach(k => {
+      const s = RES[k][c.key], col = COLORS[colorOf[k]];
+      const band = s.p90.map((v, i) => `${x(i)},${y(v)}`).join(' ') + ' ' + s.p10.map((v, i) => `${x(i)},${y(v)}`).reverse().join(' ');
+      g += `<polygon points="${band}" fill="${col}" opacity="0.13"/>`;
+      g += `<polyline points="${s.p50.map((v, i) => `${x(i)},${y(v)}`).join(' ')}" fill="none" stroke="${col}" stroke-width="2" stroke-linejoin="round"/>`;
+    });
+    g += `<line class="xh" x1="0" x2="0" y1="${Tm}" y2="${H - B}" stroke="var(--text-muted)" stroke-dasharray="3 3" opacity="0"/>`;
+    g += `<rect x="${L}" y="${Tm}" width="${W - L - R}" height="${H - Tm - B}" fill="transparent"/>`;
+    const card = document.createElement('div'); card.className = 'card';
+    card.innerHTML = `<h3>${c.t}</h3><svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${c.t}">${g}</svg>`;
+    const svg = card.querySelector('svg'), xh = svg.querySelector('.xh');
+    svg.addEventListener('pointermove', e => {
+      const r = svg.getBoundingClientRect(), px = (e.clientX - r.left) * W / r.width;
+      const i = Math.max(0, Math.min(anos.length - 1, Math.round((px - L) / ((W - L - R) / (anos.length - 1)))));
+      xh.setAttribute('x1', x(i)); xh.setAttribute('x2', x(i)); xh.setAttribute('opacity', 1);
+      const tip = $('tip'); tip.style.display = 'block';
+      tip.innerHTML = `<b>${anos[i]}</b>` + selected.map(k => { const s = RES[k][c.key];
+        return `<div class="r"><span><span class="sw" style="background:${COLORS[colorOf[k]]}"></span> ${NAMES[k]}</span><b>${fmt(s.p50[i], c.d)}</b></div><div class="r note"><span>faixa p10–p90</span><span>${fmt(s.p10[i], c.d)} – ${fmt(s.p90[i], c.d)}</span></div>`; }).join('');
+      tip.style.left = Math.min(e.clientX + 14, innerWidth - 260) + 'px'; tip.style.top = (e.clientY + 14) + 'px';
+    });
+    svg.addEventListener('pointerleave', () => { $('tip').style.display = 'none'; xh.setAttribute('opacity', 0); });
+    box.appendChild(card);
+  });
+}
+function drawTable() {
+  const rows = [
+    ['Dívida 2030 (% PIB)', r => fmt(r.divida2030, 0)], ['Dívida 2036 (% PIB)', r => fmt(r.divida2036, 0)],
+    ['Inflação média 2027–36 (%)', r => fmt(r.inflMedia)], ['Selic 2030 (%)', r => fmt(r.selic2030)], ['Selic 2036 (%)', r => fmt(r.selic2036)],
+    ['PIB médio 2027–36 (%)', r => fmt(r.pibMedio, 2)], ['Câmbio 2030 (índice, 2026 = 100)', r => fmt(r.cambio2030, 0)],
+    ['Poder de compra 2036 (2026 = 100)', r => fmt(r.poder2036, 0)], ['Probabilidade de ruptura', r => fmt(100 * r.probRuptura, 0) + '%'],
+  ];
+  $('tbl').innerHTML = `<tr><th>Indicador</th>${selected.map(k => `<th><span class="sw" style="background:${COLORS[colorOf[k]]}"></span> ${NAMES[k]}</th>`).join('')}</tr>` +
+    rows.map(([n, f]) => `<tr><td>${n}</td>${selected.map(k => `<td>${f(RES[k].resumo)}</td>`).join('')}</tr>`).join('');
+}
+function drawAnatomy() {
+  const P = Object.assign({}, M.P, globals());
+  const d = M.simulate(M.REGIMES.base, { deterministic: true, params: globals() });
+  const piE = d.piE[0], C = P.C0;
+  const parts = [
+    ['Juro real mundial', P.rWorld, '#7a7974'],
+    ['Piso de risco-país', P.rhoMin, '#9a8f7a'],
+    ['Prêmio da dívida', P.kDebt * (P.b0 - 60), 'var(--series-2)'],
+    ['Prêmio de credibilidade', P.kCred * (1 - C), '#c2410c'],
+    ['Inflação esperada', piE, 'var(--series-1)'],
+  ];
+  const soma = parts.reduce((a, p) => a + p[1], 0);
+  parts.push(['Aperto cíclico / resíduo', Math.max(0, 13.75 - soma), 'var(--series-3)']);
+  const tot = parts.reduce((a, p) => a + p[1], 0);
+  $('anat').innerHTML = parts.map(p => `<div style="flex:${p[1]};background:${p[2]}" title="${p[0]}: ${fmt(p[1])} pp">${p[1] > 1.1 ? fmt(p[1]) : ''}</div>`).join('');
+  $('anatLeg').innerHTML = parts.map(p => `<span><span class="sw" style="background:${p[2]}"></span>${p[0]}: <b style="color:var(--text-primary)">${fmt(p[1])} pp</b></span>`).join('');
+  const prem = parts[1][1] + parts[2][1] + parts[3][1];
+  $('anatTxt').textContent = `Dos ${fmt(13.75, 2)}% da Selic, cerca de ${fmt(piE)} pp compensam a inflação esperada e ${fmt(prem)} pp são prêmio de risco brasileiro (${fmt(100 * prem / tot, 0)}% da taxa). Só o componente de credibilidade, ${fmt(parts[3][1])} pp, cairia sem nenhum corte de gasto se as instituições ficassem tão críveis quanto as de um país de grau de investimento. O CDS de 5 anos (risco de calote em dólar) é só ~1,5 pp: o grosso do prêmio é medo de inflação, câmbio e mudança de regras, não de calote.`;
+}
+function drawSW() {
+  const g = +$('s_g').value / 100, v = +$('s_v').value, r = +$('s_r').value / 100;
+  $('v_g').textContent = fmt(g * 100); $('v_v').textContent = fmt(v); $('v_r').textContent = fmt(r * 100, 2);
+  const Fs = [-0.02, -0.01, -0.005, 0, 0.01, 0.02, 0.03], Ds = [0.7, 0.8, 0.83, 0.9, 1.0, 1.1];
+  $('swt').innerHTML = `<tr><th>Dívida \\ Primário</th>${Fs.map(F => `<th>${fmt(F * 100)}%</th>`).join('')}</tr>` +
+    Ds.map(D => `<tr><th>${fmt(D * 100, 0)}%</th>${Fs.map(F => { const p = 100 * M.piSW(g, v, F, r, D);
+      return `<td class="${p < 10 ? 'hot' : ''}">${p >= 150 ? '>150%' : fmt(p) + '%'}</td>`; }).join('')}</tr>`).join('');
+}
+function labels() {
+  $('v_prim').textContent = fmt(+$('s_prim').value) + '%'; $('v_ent').textContent = fmt(100 * $('s_ent').value, 0) + '%';
+  $('v_cred').textContent = fmt(+$('s_cred').value, 3); $('v_forc').textContent = fmt(+$('s_forc').value) + '%';
+  $('v_share').textContent = fmt(100 * $('s_share').value, 0) + '%'; $('v_venda').textContent = fmt(+$('s_venda').value);
+  $('v_inv').textContent = fmt(+$('s_inv').value); $('v_ef').textContent = fmt(100 * $('s_ef').value, 0) + '%';
+  $('v_rw').textContent = fmt(+$('s_rw').value); $('v_kc').textContent = fmt(+$('s_kc').value); $('v_kd').textContent = fmt(+$('s_kd').value, 3);
+  $('s_forc').disabled = $('c_bc').checked;
+}
+let pending = null;
+function run() {
+  labels(); drawButtons();
+  const opts = { params: globals() };
+  selected.forEach(k => { RES[k] = M.monteCarlo(regimeOf(k), 300, opts); });
+  drawCharts(); drawTable(); drawAnatomy();
+}
+function schedule() { labels(); clearTimeout(pending); pending = setTimeout(() => {
+  if (!selected.includes('custom') && document.activeElement && document.activeElement.closest('.grid2')) {
+    if (selected.length >= 3) { const out = selected.shift(); delete colorOf[out]; }
+    const used = Object.values(colorOf); colorOf.custom = [0, 1, 2].find(i => !used.includes(i)); selected.push('custom');
+  }
+  run(); }, 120); }
+document.querySelectorAll('.grid2 input, #s_rw, #s_kc, #s_kd').forEach(el => el.addEventListener('input', schedule));
+['s_g', 's_v', 's_r'].forEach(id => $(id).addEventListener('input', drawSW));
+$('b_reset').onclick = () => {
+  const def = { s_prim: 1.5, s_ent: 0.65, s_cred: 0.015, s_forc: 8, s_share: 0.47, s_venda: 0, s_inv: 0, s_ef: 0.35 };
+  Object.entries(def).forEach(([k, v]) => $(k).value = v);
+  $('c_regra').checked = false; $('c_bc').checked = true; $('c_dual').checked = false; schedule();
+};
+run(); drawSW();
+</script></body></html>
